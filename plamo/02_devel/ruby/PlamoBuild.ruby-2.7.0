@@ -1,9 +1,9 @@
 #!/bin/sh
 ##############################################################
 pkgbase='ruby'
-vers='2.6.5'
+vers='2.7.0'
 url="https://cache.ruby-lang.org/pub/${pkgbase}/${vers%.*}/${pkgbase}-${vers}.tar.xz"
-digest="sha256sum:d5d6da717fd48524596f9b78ac5a2eeb9691753da5c06923a6c31190abe01a62"
+digest="sha256sum:27d350a52a02b53034ca0794efe518667d558f152656c2baaf08f3d0c8b02343"
 verify=""
 arch=`uname -m`
 build=B1
