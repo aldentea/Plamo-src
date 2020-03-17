@@ -1,29 +1,32 @@
 #!/bin/sh
 ##############################################################
-pkgbase='polkit'
-vers="0.115"
-url="https://www.freedesktop.org/software/polkit/releases/polkit-${vers}.tar.gz"
-verify="${url}.sign"
+pkgbase="ovmf"
+vers="stable201911"
+openssl_vers="1.1.1b"
+urls=(https://github.com/tianocore/edk2/archive/edk2-${vers}.tar.gz
+      https://www.openssl.org/source/openssl-${openssl_vers}.tar.gz)
+url=""
+verify=""
 digest=""
 arch=`uname -m`
-build=B3
-src="${pkgbase}-${vers}"
-OPT_CONFIG='--disable-static --enable-shared  --with-polkitd-user=polkituser --enable-introspection  --enable-libsystemd-login=no --disable-libelogind'
-DOCS="AUTHORS COPYING ChangeLog HACKING INSTALL NEWS README"
-patchfiles="polkit-0.115-security_patch-3.patch"
-addfiles="polkit.pam"
+build=B2
+src="edk2-edk2-${vers}"
+OPT_CONFIG="--disable-static --enable-shared"
+DOCS="License-History.txt License.txt Maintainers.txt Readme.md pip-requirements.txt"
+patchfiles=""
+# specifies files that are not in source archive and patchfiles
+addfiles="60-edk2-ovmf-x86_64.json"
 compress=txz
 ##############################################################
 
 source /usr/share/plamobuild_functions.sh
 
 # このスクリプトで使う1文字変数の意味
-# 
+#
 # $W : このスクリプトを動かすカレントディレクトリ
 # $S : ソースコードのあるディレクトリ(デフォルト: $W/${src})
-# $B : ビルド用ディレクトリ(デフォルト: /tmp/build{,32})
+# $B : ビルド用ディレクトリ(デフォルト: /tmp/build)
 # $P : ビルドしたファイルをインストールするディレクトリ（デフォルト: $W/work)
-
 
 if [ $# -eq 0 ] ; then
   opt_download=0 ; opt_config=1 ; opt_build=1 ; opt_package=1
@@ -39,7 +42,13 @@ else
   done
 fi
 if [ $opt_download -eq 1 ] ; then
-    download_sources
+    for f in ${urls[@]}
+    do
+        if [ ! -f ${f##*/} ]; then
+            wget $f
+        fi
+        tar xvf ${f##*/}
+    done
 fi
 
 if [ $opt_config -eq 1 ] ; then
@@ -52,61 +61,53 @@ if [ $opt_config -eq 1 ] ; then
         fi
     done
 
-    if [ -d $B ] ; then rm -rf $B ; fi ; mkdir -p $B 
-######################################################################
-#  don't copy sources, so need patch in the src dir
-######################################################################
-    cd $S
+
+
+    if [ -d $B ] ; then rm -rf $B ; fi ; cp -a $W/$src $B
+    cd $B
     for patch in $patchfiles ; do
         if [ ! -f .${patch} ]; then
             patch -p1 < $W/$patch
             touch .${patch}
         fi
     done
-
-    cd $B
-    export PKG_CONFIG_PATH=/usr/${libdir}/pkgconfig:/usr/share/pkgconfig:/opt/kde/${libdir}/pkgconfig
-    export LDFLAGS='-Wl,--as-needed' 
-    $S/configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --mandir='${prefix}'/share/man ${OPT_CONFIG}
-    
-    if [ $? != 0 ]; then
-	echo "configure error. $0 script stop"
-	exit 255
-    fi
+    rm -rvf CryptoPkg/Library/OpensslLib/openssl
+    ln -svf $W/openssl-${openssl_vers} CryptoPkg/Library/OpensslLib/openssl
 fi
-    
+
 if [ $opt_build -eq 1 ] ; then
-    cd $B
-    export LDFLAGS='-Wl,--as-needed'
-    make -j3
+    cd $B 
+    make -C BaseTools
     if [ $? != 0 ]; then
-	echo "build error. $0 script stop"
-	exit 255
+        echo "build error. $0 script stop"
+        exit 255
     fi
+    pwd
+    export EDK_TOOLS_PATH=$B/BaseTools
+    . $B/edksetup.sh BaseTools
+
+    ./BaseTools/BinWrappers/PosixLike/build -t GCC5 -a X64 -p OvmfPkg/OvmfPkgX64.dsc -n $(nproc) -b RELEASE -D FD_SIZE_2MB -D NETWORK_IP6_ENABLE -D TPM2_ENABLE -D SECURE_BOOT_ENABLE -D HTTP_BOOT_ENABLE -D TLS_ENABLE
 fi
 
 if [ $opt_package -eq 1 ] ; then
   check_root
   if [ -d $P ] ; then rm -rf $P ; fi ; mkdir -p $P
   cd $B
-  export LDFLAGS='-Wl,--as-needed'
-  make install DESTDIR=$P
 
-  install -v -d $P/etc/pam.d
-  install -v -m 0644 $W/polkit.pam $P/etc/pam.d/polkit-1
-  install -v -o polkituser -d $P/home/polkituser
-
-  install -Dm644 -v $W/polkit.pam $docdir/$src/polkit.pam
+  install -Dm644 $B/Build/OvmfX64/RELEASE_GCC5/FV/OVMF_CODE.fd $P/usr/share/ovmf/x64/OVMF_CODE.fd
+  install -Dm644 $B/Build/OvmfX64/RELEASE_GCC5/FV/OVMF_VARS.fd $P/usr/share/ovmf/x64/OVMF_VARS.fd
+  install -Dm644 $W/60-edk2-ovmf-x86_64.json $P/usr/share/qemu/firmware/60-edk2-ovmf-x86_64.json
+  ( cd $P/usr/share/ovmf/x64 && ln -v OVMF_VARS.fd OVMF_VARS.ms.fd )
 
 ################################
 #      install tweaks
-#  strip binaries, delete locale except ja, compress man, 
+#  strip binaries, delete locale except ja, compress man,
 #  install docs and patches, compress them and  chown root.root
 ################################
   install_tweak
 
 #############################
-#   convert symlink to null file and 
+#   convert symlink to null file and
 #   add "ln -sf" command into install/doinst.sh
 ################################
   convert_links
