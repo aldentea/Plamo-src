@@ -6,7 +6,7 @@ url="https://www.php.net/distributions/php-${vers}.tar.xz"
 verify="${url}.asc"
 digest=""
 arch=`uname -m`
-build=B1
+build=B3
 src="php-${vers}"
 OPT_CONFIG=()
 BUILD_TYPE=(apache cgi)
@@ -29,7 +29,7 @@ OPT_CONFIG=("${OPT_CONFIG[@]}"
 	    --with-layout=GNU
 	    --with-config-file-path=/etc/php
 	    --with-config-file-scan-dir=/etc/php/conf.d
-	    --disable-rpath
+	    #--disable-rpath
 	    --mandir=/usr/share/man)
 
 # 拡張
@@ -37,10 +37,10 @@ OPT_MODULE=(--enable-bcmath=shared
 	    --enable-calendar=shared
 	    --enable-dba=shared
 	    --enable-exif=shared
-	    --enable-ftp=shared
-	    --enable-gd=shared
+	    #--enable-ftp=shared
+	    #--enable-gd=shared
 	    --enable-intl=shared
-	    --enable-mbstring
+	    --enable-mbstring=shared
 	    --enable-pcntl
 	    --enable-shmop=shared
 	    --enable-soap=shared
@@ -51,21 +51,21 @@ OPT_MODULE=(--enable-bcmath=shared
 	    --with-bz2=shared
 	    --with-curl=shared
 	    --with-enchant=shared
-	    --with-external-pcre
-	    --with-ffi=shared
+	    #--with-external-pcre
+	    #--with-ffi=shared
 	    --with-freetype
 	    --with-gdbm
 	    --with-gettext=shared
 	    --with-gmp=shared
 	    --with-iconv=shared
-	    --with-ldap=shared
+	    #--with-ldap=shared
 	    --with-mhash
 	    --with-mysql-sock=/run/mysqld/mysqld.sock
 	    --with-mysqli=shared,mysqlnd
 	    --with-openssl
 	    --with-password-argon2
 	    --with-pdo-mysql=shared,mysqlnd
-	    --with-pdo-sqlite=shared
+	    --with-pdo-sqlite=shared,/usr
 	    --with-pspell=shared
 	    --with-readline
 	    --with-sodium=shared
@@ -150,6 +150,7 @@ fi
 if [ $opt_build -eq 1 ] ; then
     for t in ${BUILD_TYPE[@]}
     do
+        echo ${B}/${t}
 	cd $B/$t
 	echo "=== build $t ==="
 	export LDFLAGS='-Wl,--as-needed'
