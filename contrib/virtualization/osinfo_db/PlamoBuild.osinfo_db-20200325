@@ -1,14 +1,14 @@
 #!/bin/sh
 ##############################################################
-pkgbase='etc'
-vers='7.0'
-url=""
-verify=""
+pkgbase='osinfo_db'
+vers="20200325"
+url="https://releases.pagure.org/libosinfo/osinfo-db-${vers}.tar.xz"
+verify="${url}.asc"
 arch=noarch
-build=B21
-src="files"
-OPT_CONFIG=''
-DOCS=''
+build=B1
+src="osinfo-db-${vers}"
+OPT_CONFIG='--disable-static --enable-shared'
+DOCS='LICENSE install-script'
 patchfiles=''
 compress=txz
 ##############################################################
@@ -43,69 +43,29 @@ fi
 if [ $opt_config -eq 1 ] ; then
   echo "There is nothing to do."
 fi
-
+    
 if [ $opt_build -eq 1 ] ; then
   echo "There is nothing to do."
 fi
 
 if [ $opt_package -eq 1 ] ; then
+  # copy plamo linux info to source dir
+  rm -rfv $S/os/plamolinux.org
+  cp -av $W/osinfo-db-plamo/* $S/
+
+  # Re-generate osinfo-db archive
+  tar Jcvf $W/${pkgbase}-${vers}.tar.xz ${pkgbase/_/-}-${vers}
+
   check_root
   if [ -d $P ] ; then rm -rf $P ; fi ; mkdir -p $P
-  cd $S
-  cp -a etc $P/
-  if [ `id -u` -eq 0 ]; then
-    chown -R root:root $P/*
-  fi
-  mkdir -p $docdir/$src
-
-  mkdir -p $P/install
-  cat <<EOF > $P/install/doinst.sh
-( cd etc ; rm -rf issue.net )
-( cd etc ; ln -sf issue issue.net )
-( cd etc ; rm -rf skel )
-( cd etc ; ln -sf template/Default skel )
-( cd etc ; rm -rf HOSTNAME )
-( cd etc ; ln -sf hostname HOSTNAME )
-( cd var/log ; rm -rf utmp )
-( cd var/log ; ln -sf /var/run/utmp utmp)
-if [ ! -r etc/passwd ] ; then
-  cp etc/npasswd etc/passwd
-fi
-if [ ! -r etc/passwd.OLD ] ; then
-  mv etc/npasswd etc/passwd.OLD
-else
-  rm etc/npasswd
-fi
-if [ ! -r etc/shadow ] ; then
-  mv etc/nshadow etc/shadow
-else
-  rm etc/nshadow
-fi
-if [ ! -r etc/group ] ; then
-  mv etc/ngroup etc/group
-else
-  rm etc/ngroup
-fi
-if [ ! -r etc/hosts ] ; then
-  mv etc/hosts-incoming etc/hosts
-else
-  rm -f etc/hosts-incoming
-fi
-if [ ! -r etc/networks ] ; then
-  mv etc/networks-incoming etc/networks
-else
-  rm -f etc/networks-incoming
-fi
-EOF
+  osinfo-db-import --root=$P --system ${pkgbase}-${vers}.tar.xz
 
 ################################
 #      install tweaks
-#  strip binaries, delete locale except ja, compress man,
+#  strip binaries, delete locale except ja, compress man, 
 #  install docs and patches, compress them and  chown root.root
 ################################
   install_tweak
-
-  mv $P/usr/share/doc/$src $P/usr/share/doc/"$pkgbase"-"$vers"
 
 #############################
 #   convert symlink to null file and 

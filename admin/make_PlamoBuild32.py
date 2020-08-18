@@ -15,43 +15,8 @@ class Package():
             self.basename = "_".join(parts[0:-1])
             self.version = parts[-1]
 
-        keywords = ['ABOUT', 'AUTHOR', 'COPYING', 'CHANGELOG', 'HACKING', 'HISTORY', 'INSTALL', 'LICENSE', 'LSM', 'MAINTAINERS', 'NEWS', 'README', 'RELEASE', 'THANKS', 'THANKYOU', 'TODO',  'TXT']
-        exceptions = ['CMakeLists.txt', 'install-sh', 'mkinstalldirs',  '.in', '.sh', 'meson-options.txt']
-        tmplist = []
-        newlist = []
-        '''
-        keywords に一部でもマッチするファイルを tmplist に拾い、
-        その中から exceptions にマッチするファイルは除く
-        '''
-        files = os.listdir(self.srcdir)
-        for i in files:
-            check = i.upper()
-            for j in keywords:
-                if check.find(j) >= 0:
-                    tmplist.append(i)
-                    break
-        for i in tmplist:
-            match = False
-            for j in exceptions:
-                if i.find(j) >= 0:
-                    match = True
-                    break
-            if match == False:
-                newlist.append(i)
-
-            newlist.sort()
-        self.readmes = " ".join(newlist)
-
-        files = os.listdir(os.getcwd())
-        keywords = ['PATCH', 'DIFF']
-        patchlist = []
-        for i in files:
-            check = i.upper()
-            for j in keywords:
-                if check.find(j) >= 0:
-                    patchlist.append(i)
-        patchlist.sort()
-        self.patches = " ".join(patchlist)
+        self.readmes = ""
+        self.patches = ""
 
     def get_method(self, method):
         self.method = 'none'
@@ -86,13 +51,13 @@ class Package():
             opt_config = ''
         self.header = '''#!/bin/sh
 ##############################################################
-pkgbase="{1}"
+pkgbase="lib32_{1}"
 vers="{2}"
 url="{0}"
 verify=""
 digest=""
-arch=`uname -m`
-build=B1
+arch="i686"
+build=M1
 src="{3}"
 OPT_CONFIG="{6}"
 DOCS="{4}"
@@ -106,6 +71,9 @@ compress=txz
     def make_download(self):
         self.download = '''
 source /usr/share/plamobuild_functions.sh
+export CC='gcc -m32'
+export CXX='g++ -m32'
+export libdir='lib32'
 
 # このスクリプトで使う1文字変数の意味
 #
@@ -274,6 +242,8 @@ if [ $opt_package -eq 1 ] ; then
             self.package += '''
   export LDFLAGS='-Wl,--as-needed'
   make install DESTDIR=$P
+  rm -rf $P/usr/{bin,include,share}
+  rm -rf $P/etc
 '''
         self.package += '''
 ################################
@@ -328,7 +298,7 @@ def main():
 
     script = pkg.header + pkg.download + pkg.config + pkg.build + pkg.package
 
-    script_name = "PlamoBuild." + params.srcdir.strip("/")
+    script_name = "PlamoBuild.lib32_" + params.srcdir.strip("/")
     if os.path.isfile(script_name) :
         print("same name Build script already exists. ")
         ans = input('Overwrite? [y/N]')
