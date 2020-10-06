@@ -1,15 +1,9 @@
 #!/bin/sh
 ##############################################################
 pkgbase='ruby'
-<<<<<<< HEAD:plamo/02_devel/ruby/PlamoBuild.ruby-2.6.5
-vers='2.6.5'
+vers='2.7.0'
 url="https://cache.ruby-lang.org/pub/${pkgbase}/${vers%.*}/${pkgbase}-${vers}.tar.xz"
-digest="sha256sum:d5d6da717fd48524596f9b78ac5a2eeb9691753da5c06923a6c31190abe01a62"
-=======
-vers='2.5.7'
-url="https://cache.ruby-lang.org/pub/${pkgbase}/${vers%.*}/${pkgbase}-${vers}.tar.gz"
-digest="sha256sum:0b2d0d5e3451b6ab454f81b1bfca007407c0548dea403f1eba2e429da4add6d4"
->>>>>>> plamo-7.x:plamo/02_devel/ruby/PlamoBuild.ruby-2.5.7
+digest="sha256sum:8c99aa93b5e2f1bc8437d1bbbefd27b13e7694025331f77245d0c068ef1f8cbe"
 verify=""
 arch=`uname -m`
 build=B1
