@@ -1,0 +1,35 @@
+#!/bin/sh
+
+
+. /lib/lsb/init-functions
+
+BINFILE=/usr/sbin/nginx
+PIDFILE=/var/run/nginx.pid
+
+case "$1" in
+    start)
+        log_info_msg "Starting Nginx..."
+        start_daemon -p "${PIDFILE}" nginx
+	evaluate_retval
+	;;
+
+    stop)
+        log_info_msg "Stopping Nginx..."
+        nginx -s stop
+        evaluate_retval
+        ;;
+    reload)
+        log_info_msg "Reloading Nginx..."
+        start_daemon ${BINFILE} -s reload
+        evaluate_retval
+        ;;
+    status)
+        echo -n "Nginx: "
+        statusproc -p "${PIDFILE}" ${BINFILE}
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|reload|status}"
+        exit 1
+        ;;
+esac
+
