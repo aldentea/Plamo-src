@@ -1,9 +1,9 @@
 #!/bin/sh
 ##############################################################
 pkgbase='ruby'
-vers='2.7.2'
-url="https://cache.ruby-lang.org/pub/${pkgbase}/${vers%.*}/${pkgbase}-${vers}.tar.xz"
-digest="sha256sum:1b95ab193cc8f5b5e59d2686cb3d5dcf1ddf2a86cb6950e0b4bdaae5040ec0d6"
+vers='3.0.0'
+url="https://cache.ruby-lang.org/pub/${pkgbase}/${vers%.*}/${pkgbase}-${vers}.tar.gz"
+digest="sha256sum:a13ed141a1c18eb967aac1e33f4d6ad5f21be1ac543c344e0d6feeee54af8e28"
 verify=""
 arch=`uname -m`
 build=B1
