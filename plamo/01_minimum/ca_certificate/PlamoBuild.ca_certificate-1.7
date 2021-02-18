@@ -1,0 +1,139 @@
+#!/bin/sh
+##############################################################
+pkgbase="ca_certificate"
+script_vers="1.7"
+vers="${script_vers}_$(date +%Y%m%d)"
+url="https://github.com/djlucas/make-ca/releases/download/v${script_vers}/make-ca-${script_vers}.tar.xz"
+digest="md5sum:e0356f5ae5623f227a3f69b5e8848ec6"
+cert_url="https://hg.mozilla.org/releases/mozilla-release/raw-file/default/security/nss/lib/ckfw/builtins/certdata.txt"
+cacert_url=("http://www.cacert.org/certs/root.crt"
+	    "http://www.cacert.org/certs/class3.crt")
+# See http://www.cacert.org/index.php?id=3
+cacert_fp=("13:5C:EC:36:F4:9C:B8:E9:3B:1A:B2:70:CD:80:88:46:76:CE:8F:33"
+	   "AD:7C:3F:64:FC:44:39:FE:F4:E9:0B:E8:F4:7C:6C:FA:8A:AD:FD:CE")
+cacert_class=("1" "3")
+verify=""
+arch=`uname -m`
+build=B1
+src=""
+OPT_CONFIG='--disable-static --enable-shared'
+DOCS=''
+patchfiles=''
+compress=txz
+##############################################################
+
+source /usr/share/plamobuild_functions.sh
+
+# このスクリプトで使う1文字変数の意味
+#
+# $W : このスクリプトを動かすカレントディレクトリ
+# $S : ソースコードのあるディレクトリ(デフォルト: $W/${src})
+# $B : ビルド用ディレクトリ(デフォルト: /tmp/build{,32})
+# $P : ビルドしたファイルをインストールするディレクトリ（デフォルト: $W/work)
+
+
+if [ $# -eq 0 ] ; then
+  opt_download=0 ; opt_config=1 ; opt_build=1 ; opt_package=1
+else
+  opt_download=0 ; opt_config=0 ; opt_build=0 ; opt_package=0
+  for i in $@ ; do
+    case $i in
+    download) opt_download=1 ;;
+    config) opt_config=1 ;;
+    build) opt_build=1 ;;
+    package) opt_package=1 ;;
+    esac
+  done
+fi
+if [ $opt_download -eq 1 ] ; then
+  download_sources
+  if [ ! -f ${cert_url##*/} ]; then
+    wget $cert_url
+  fi
+
+  # CACert Certs (Class 1, Class 3)
+  i=0
+  for ca in ${cacert_url[@]}
+  do
+      wget $ca
+      fp=$(openssl x509 -in ${ca##*/} -fingerprint -noout | sed -e 's/SHA1 Fingerprint=//')
+      if [ "$fp" != "${cacert_fp[$i]}" ] ; then
+	  echo "The certificate fingerprint of CAcert does not match."
+	  exit 1
+      fi
+      let i++
+  done
+  
+fi
+
+if [ $opt_config -eq 1 ] ; then
+  echo "Nothing to config"  
+fi
+    
+if [ $opt_build -eq 1 ] ; then
+  echo "Nothing to build"
+fi
+
+if [ $opt_package -eq 1 ] ; then
+  check_root
+  if [ -d $P ] ; then rm -rf $P ; fi ; mkdir -p $P
+
+  install -v -d -m755 $P/etc/ssl/local
+
+  i=0
+  for ca in ${cacert_url[@]}
+  do
+      openssl x509 -in $W/${ca##*/} -text -fingerprint -setalias "CAcert Class ${cacert_class[$i]} root" \
+              -addtrust serverAuth -addtrust emailProtection -addtrust codeSigning \
+              > $P/etc/ssl/local/CAcert_Class_${cacert_class[$i]}_root.pem
+      let i++
+  done
+
+  cd $W/$(basename ${url##*/} .tar.xz)
+  make install DESTDIR=$P
+
+  install -v -d -m755 $P/usr/share/doc/"$pkgbase"-"$vers"/
+  install -v -d -m755 $P/etc/pki
+
+  install -v -Dm754 $W/update-cacert.sh $P/etc/cron.weekly/update-cacert.sh
+  install -v -Dm644 $W/update-cacert.sh $P/usr/share/doc/"$pkgbase"-"$vers"/update-cacert.sh
+
+  # remove files related systemd
+  rm -rf -v $P/usr/lib/systemd
+
+  # docdir
+  install -v -m644 $W/${cert_url##*/} $P/usr/share/doc/"$pkgbase"-"$vers"/
+  install -v -m755 $W/$myname $P/usr/share/doc/"$pkgbase"-"$vers"/
+  for ca in ${cacert_url[@]}
+  do
+      install -v -m644 $W/${ca##*/} $P/usr/share/doc/"$pkgbase"-"$vers"/
+  done
+
+  mkdir -p $P/install
+  cat <<EOF >> $P/install/initpkg
+/usr/sbin/make-ca -C /usr/share/doc/${pkgbase}-${vers}/certdata.txt
+( cd /etc/ssl ; ln -sf /etc/pki/tls/certs/ca-bundle.crt ca-bundle.crt )
+( cd /etc/ssl/certs ; ln -sf /etc/pki/tls/certs/ca-bundle.crt ca-certificates.crt )
+( cd /etc/ssl/certs ; ln -sf /etc/pki/tls/certs/ca-bundle.crt ca-bundle.crt )
+EOF
+
+################################
+#      install tweaks
+#  strip binaries, delete locale except ja, compress man, 
+#  install docs and patches, compress them and  chown root.root
+################################
+#  install_tweak
+
+#############################
+#   convert symlink to null file and 
+#   add "ln -sf" command into install/doinst.sh
+################################
+  convert_links
+
+  cd $P
+  /sbin/makepkg ../$pkg.$compress <<EOF
+y
+1
+EOF
+
+fi
